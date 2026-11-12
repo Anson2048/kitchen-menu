@@ -1,0 +1,1005 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
+<meta name="theme-color" content="#c8102e">
+<title>厨房菜单</title>
+<style>
+  :root { --red: #c8102e; --bg: #f2f2f4; --card: #fff; --line: #e6e6ea; --muted: #7a7a85; --sel: #fde8eb; --ink: #1b1b1f; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 -apple-system, "PingFang SC", "Noto Sans SC", sans-serif; }
+  button { font: inherit; color: inherit; }
+  .view { display: none; min-height: 100vh; padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
+  .view.on { display: block; }
+  #vMain { padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
+  .bar { position: sticky; top: 0; z-index: 5; background: var(--red); color: #fff; padding: 8px 6px; display: flex; align-items: center; gap: 4px; }
+  .bar h1 { flex: 1; font-size: 18px; margin: 0; text-align: center; }
+  .bar .ib { background: none; border: 0; color: #fff; font-size: 22px; padding: 2px 4px; min-width: 32px; }
+  .bar .ib.txt { font-size: 16px; }
+  .daynav { display: flex; align-items: baseline; gap: 4px; flex: 1; min-width: 0; justify-content: center; white-space: nowrap; }
+  .daynav b { font-size: 16px; }
+  .daynav small { opacity: .85; font-size: 12px; }
+  .daynav input { position: absolute; opacity: 0; width: 0; height: 0; }
+  .status { background: #fff; font-size: 13px; color: var(--muted); padding: 6px 14px; border-bottom: 1px solid var(--line); }
+  .status.warn { color: var(--red); }
+  main { padding: 10px; max-width: 640px; margin: auto; }
+  .card { background: var(--card); border-radius: 14px; margin-bottom: 10px; overflow: hidden; }
+  .ch { display: flex; align-items: center; padding: 10px 14px 2px; gap: 8px; }
+  .ch h2 { margin: 0; font-size: 16px; color: var(--red); flex: 1; }
+  .link { background: none; border: 0; color: var(--red); font-size: 14px; padding: 2px 0; }
+  .dishes { list-style: none; margin: 0; padding: 0 6px; }
+  .dishes li { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-bottom: 1px solid var(--line); background: #fff; touch-action: pan-y; }
+  .dishes li.drag { box-shadow: 0 4px 14px rgba(0,0,0,.15); position: relative; z-index: 2; }
+  .dishes .no { width: 22px; color: var(--red); font-weight: 700; text-align: center; }
+  .dishes .nm { flex: 1; min-width: 0; font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dishes .nm[data-i]:active { color: var(--red); }
+  .handle { color: #b4b4bc; font-size: 18px; padding: 0 4px; cursor: grab; touch-action: none; user-select: none; }
+  .x { background: none; border: 0; color: #a1a1aa; font-size: 18px; padding: 0 4px; }
+  .add { display: block; width: calc(100% - 28px); margin: 4px 14px 6px; padding: 4px; border: 1.5px dashed #cfcfd6; border-radius: 10px; background: #fff; color: var(--muted); font-size: 15px; }
+  .row { display: flex; align-items: flex-start; gap: 10px; padding: 9px 14px; border-top: 1px solid var(--line); }
+  .row .k { color: var(--red); font-weight: 600; flex: none; width: 2.5em; }
+  .row .v { flex: 1; min-width: 0; white-space: pre-line; min-height: 1.45em; }
+  .row .v.ph { color: #b4b4bc; }
+  .row .go { color: #c4c4cc; }
+  .tag { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 999px; background: #ececf0; color: var(--muted); font-size: 12px; line-height: 1.6; vertical-align: 1px; }
+  .sug { margin: 0 10px 10px; padding: 8px 10px; border: 1.5px dashed #cfcfd6; border-radius: 10px; background: #fafafc; font-size: 14px; color: var(--muted); }
+  .sug .acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
+  .sug button { font: inherit; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--line); background: #fff; color: var(--muted); }
+  .sug button.ok { border-color: var(--red); color: var(--red); }
+  .card.tap .row:active, .row.tap:active { background: #fafafa; }
+  .pv { width: 100%; height: auto; display: block; border-radius: 10px; border: 1px solid var(--line); background: #fff; }
+  .pvcap { font-size: 13px; color: var(--muted); text-align: center; margin: 6px 0 0; line-height: 1.6; }
+  .pvcap.warn { color: var(--red); }
+  /* 弹层 */
+  .sheet-bg { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 20; display: none; align-items: flex-end; justify-content: center; }
+  .sheet-bg.on { display: flex; }
+  .sheet { background: #fff; width: 100%; max-width: 640px; border-radius: 16px 16px 0 0; padding: 14px 14px calc(14px + env(safe-area-inset-bottom)); max-height: 90vh; max-height: 90dvh; overflow-y: auto; }
+  .sheet h3 { margin: 0 0 10px; font-size: 17px; }
+  .sheet textarea, .sheet input[type=text], .sheet select { width: 100%; font: inherit; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: #fafafa; }
+  .sheet textarea { min-height: 84px; resize: vertical; }
+  .hint { font-size: 13px; color: var(--muted); margin: 10px 0 6px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { padding: 6px 12px; border-radius: 999px; background: var(--bg); font-size: 15px; border: 1px solid transparent; }
+  .chip.on { background: var(--sel); border-color: var(--red); color: var(--red); }
+  .acts { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
+  .btn { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 8px 18px; font-size: 15px; }
+  .btn.red { background: var(--red); border-color: var(--red); color: #fff; }
+  .btn.danger { color: var(--red); }
+  /* 选菜页 */
+  .picker { position: fixed; inset: 0; z-index: 15; background: var(--bg); display: none; flex-direction: column; }
+  .picker.on { display: flex; }
+  .picker .top { padding: 8px 12px; background: #fff; border-bottom: 1px solid var(--line); }
+  .search { width: 100%; font: inherit; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
+  .tabs { display: flex; gap: 6px; overflow-x: auto; margin-top: 8px; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { flex: none; padding: 4px 12px; border-radius: 999px; background: var(--bg); font-size: 14px; border: 0; }
+  .tab.on { background: var(--red); color: #fff; }
+  .grid { flex: 1; overflow-y: auto; padding: 10px 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; align-content: start; grid-auto-rows: max-content; }
+  .dc { position: relative; border-radius: 10px; overflow: hidden; background: #fff; border: 0; padding: 0; text-align: left; }
+  .dc .im { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
+  .ph { display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; }
+  .dc .ph { width: 100%; aspect-ratio: 1; font-size: 22px; }
+  .dc .nm { font-size: 13px; padding: 4px 6px 6px; line-height: 1.25; height: 2.6em; overflow: hidden; }
+  .dc .cnt { position: absolute; top: 4px; left: 4px; background: rgba(0,0,0,.55); color: #fff; font-size: 11px; border-radius: 6px; padding: 0 5px; }
+  .dc.on { outline: 3px solid var(--red); }
+  .dc.on::after { content: "✓"; position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; border-radius: 50%; background: var(--red); color: #fff; font-size: 14px; text-align: center; line-height: 22px; }
+  .dc .sb { position: absolute; top: 4px; right: 4px; font-size: 11px; border-radius: 6px; padding: 0 5px; background: rgba(0,0,0,.55); color: #fff; }
+  .dc .sb.ok { background: #1a7f37; }
+  .dc.on .sb { display: none; }
+  .dc .ms { font-size: 11px; color: var(--red); padding: 0 6px 5px; margin-top: -4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dc.new { display: flex; flex-direction: column; align-items: center; justify-content: center; aspect-ratio: .78; border: 2px dashed #cfcfd6; color: var(--muted); }
+  .picker .foot { background: #fff; border-top: 1px solid var(--line); padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 10px; }
+  .picker .foot .sel { flex: 1; font-size: 14px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .empty { color: var(--muted); font-size: 14px; padding: 16px; text-align: center; grid-column: 1 / -1; }
+  /* 设置 */
+  .list { background: #fff; border-radius: 14px; overflow: hidden; margin-bottom: 12px; }
+  .li { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); background: #fff; }
+  .li:last-child { border-bottom: 0; }
+  .li .t { flex: 1; min-width: 0; }
+  .li .t small { display: block; color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .li .r { color: var(--muted); font-size: 14px; }
+  .li input[type=text] { flex: 1; font: inherit; border: 0; padding: 0; background: none; }
+  .thumb { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; flex: none; }
+  .seg { display: flex; background: #e4e4e8; border-radius: 10px; padding: 3px; margin-bottom: 12px; }
+  .seg button { flex: 1; border: 0; background: none; padding: 6px; border-radius: 8px; font-size: 14px; }
+  .seg button.on { background: #fff; font-weight: 600; }
+  /* 红条里的「这天阿姨」按钮：点开是系统的选择器 */
+  .modebtn { position: relative; flex: none; font-size: 14px; padding: 3px 10px; border-radius: 999px; background: rgba(255,255,255,.2); white-space: nowrap; }
+  .modebtn.alt { background: #fff; color: var(--red); font-weight: 600; }
+  .modebtn.dis { opacity: .6; }
+  .modebtn select { position: absolute; inset: 0; opacity: 0; width: 100%; font-size: 16px; }
+  .sect { font-size: 13px; color: var(--muted); margin: 14px 4px 6px; }
+  .tm-in, .sel-in { font: inherit; border: 0; background: none; color: var(--ink, inherit); }
+  .k-in { color: var(--muted); width: 52px; flex: none; }
+  .day-chip { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: #fff; font-size: 15px; }
+  .day-chip.on { background: var(--red); border-color: var(--red); color: #fff; font-weight: 600; }
+  .api-row code { font-size: 13px; color: var(--muted); }
+  .times { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 14px; }
+  .times .chip { display: flex; gap: 6px; align-items: center; }
+  .switch { width: 46px; height: 28px; border-radius: 14px; background: #d4d4d8; position: relative; border: 0; flex: none; }
+  .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; transition: left .15s; }
+  .switch.on { background: #34c759; }
+  .switch.on::after { left: 21px; }
+  .log { font-size: 14px; }
+  .log .li { align-items: flex-start; }
+  .log .tm { width: 92px; flex: none; color: var(--muted); font-size: 13px; }
+  .tag { display: inline-block; font-size: 12px; padding: 0 6px; border-radius: 6px; background: var(--bg); margin-right: 4px; }
+  .tag.red { background: var(--sel); color: var(--red); }
+  .tag.green { background: #e7f6ec; color: #1a7f37; }
+  .toast { position: fixed; left: 50%; bottom: calc(30px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: #1b1b1f; color: #fff; padding: 8px 16px; border-radius: 999px; font-size: 14px; opacity: 0; transition: opacity .2s; z-index: 40; pointer-events: none; white-space: nowrap; }
+  .toast.on { opacity: .92; }
+  .photo { width: 100%; max-height: 240px; object-fit: cover; border-radius: 10px; margin-bottom: 8px; }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+  /* 库存 */
+  .miss { margin: 2px 14px 4px; font-size: 14px; color: var(--red); }
+  .stk .t b { font-weight: 600; }
+  .stk .r.warn { color: var(--red); }
+  .stk .act { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 3px 10px; font-size: 13px; color: var(--muted); flex: none; }
+  .stepper { display: flex; align-items: center; justify-content: center; gap: 18px; margin: 6px 0 4px; }
+  .stepper button { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line); background: #fff; font-size: 22px; }
+  .stepper b { font-size: 26px; min-width: 3em; text-align: center; }
+  .cook { padding: 10px 14px; line-height: 1.9; }
+</style>
+</head>
+<body>
+
+<!-- ============ 主界面 ============ -->
+<div class="view" id="vMain">
+  <div class="bar">
+    <button class="ib" onclick="shiftDay(-1)">‹</button>
+    <label class="daynav"><b id="dayTitle"></b><small id="daySub"></small>
+      <input type="date" id="datePick" onchange="setDay(this.value)"></label>
+    <button class="ib" onclick="shiftDay(1)">›</button>
+    <label class="modebtn" id="modeBtn"><span id="modeTxt"></span> ▾<select id="modeSel" onchange="setMode(this.value)">
+      <option value="cook">做饭</option><option value="cat">不做饭</option><option value="off">不来</option></select></label>
+    <button class="ib" onclick="go('#/settings')">⚙︎</button>
+  </div>
+  <main>
+    <p class="pvcap" id="offHint" style="margin:24px 0">这天阿姨不来，屏幕显示下一个来的日子</p>
+    <div class="card" id="cDishes">
+      <div class="ch"><h2>菜</h2><button class="link" onclick="copyLast()">复制上次</button></div>
+      <ul class="dishes" id="dishList"></ul>
+      <p class="miss" id="missLine" style="display:none"></p>
+      <button class="add" onclick="openPicker()">＋ 加菜</button>
+      <div class="row tap" onclick="openText('note')"><span class="k" style="color:var(--muted)">备注</span><span class="v" id="vNote"></span><span class="go">›</span></div>
+    </div>
+    <div class="card" id="cTasks"><div class="row tap" style="border-top:0" id="rSteam" onclick="openText('steam')"><span class="k">蒸</span><span class="v" id="vSteam"></span><span class="go">›</span></div>
+      <div class="row tap" id="rTasks" onclick="openText('tasks')"><span class="k">留言</span><span class="v" id="vTasks"></span><span class="go">›</span></div>
+      <div id="sugBox"></div></div>
+    <img class="pv" id="pvThumb" onclick="openSheet('shPreview')" alt="屏幕预览">
+    <p class="pvcap" id="pvcap"></p>
+    <div class="list" style="margin-top:12px"><div class="li" onclick="go('#/stock')"><div class="t">家里有什么<small id="stockSum">估的，不准就点进去改</small></div><span class="r">›</span></div></div>
+  </main>
+</div>
+
+<!-- ============ 家里有什么 ============ -->
+<div class="view" id="vStock">
+  <div class="bar"><button class="ib" onclick="go('#/')">‹</button><h1>家里有什么</h1><button class="ib txt" onclick="openSheet('shAdd')">＋ 记一笔</button></div>
+  <main>
+    <div id="stkWarn"></div>
+    <div id="stkCats"></div>
+    <div class="sect">现在就能做（调料以外的原料都有）</div>
+    <div class="list"><div class="cook" id="stkCook"></div></div>
+    <div class="sect">最近买的</div>
+    <div class="list" id="stkBought"></div>
+    <p class="pvcap">按买的东西、每天的菜单和保质期估的，点一行改剩多少</p>
+  </main>
+</div>
+
+<!-- ============ 设置首页 ============ -->
+<div class="view" id="vSettings">
+  <div class="bar"><button class="ib" onclick="go('#/')">‹</button><h1>设置</h1><span class="ib"></span></div>
+  <main>
+    <div class="list">
+      <div class="li" onclick="go('#/settings/schedule')"><div class="t">阿姨的作息<small id="sSchedule"></small></div><span class="r">›</span></div>
+      <div class="li" onclick="go('#/settings/presets')"><div class="t">常用项<small>蒸、留言、备注的预设</small></div><span class="r">›</span></div>
+      <div class="li" onclick="go('#/settings/chores')"><div class="t">周期任务<small id="sChores">擦楼梯、洗沙发套这类，到期自动写进留言</small></div><span class="r">›</span></div>
+      <div class="li" onclick="go('#/settings/dishes')"><div class="t">菜品库<small id="sDishes"></small></div><span class="r">›</span></div>
+      <div class="li" onclick="go('#/settings/history')"><div class="t">菜单历史<small id="sHistory"></small></div><span class="r">›</span></div>
+      <div class="li" onclick="go('#/settings/screen')"><div class="t">屏幕<small id="sScreen"></small></div><span class="r">›</span></div>
+      <div class="li" onclick="go('#/settings/notify')"><div class="t">通知和集成<small id="sNotify"></small></div><span class="r">›</span></div>
+      <div class="li" onclick="go('#/settings/logs')"><div class="t">日志<small>屏幕每次醒来、每次修改菜单、发送失败的通知</small></div><span class="r">›</span></div>
+    </div>
+  </main>
+</div>
+
+<!-- ============ 阿姨的作息 ============ -->
+<div class="view" id="vSchedule">
+  <div class="bar"><button class="ib" onclick="go('#/settings')">‹</button><h1>阿姨的作息</h1><span class="ib"></span></div>
+  <main>
+    <div class="sect">哪几天来</div>
+    <div class="list"><div class="times" id="schDays"></div></div>
+    <div class="list">
+      <div class="li"><div class="t">几点到</div><input type="time" id="schArrive" onchange="saveSchedule({arrive:this.value})" class="tm-in"></div>
+      <div class="li"><div class="t">几点走</div><input type="time" id="schLeave" onchange="saveSchedule({leave:this.value})" class="tm-in"></div>
+    </div>
+    <p class="pvcap">到点后这天的菜算用掉（扣库存）；走了之后的提醒排到下一个来的日子</p>
+  </main>
+</div>
+
+<!-- ============ 通知和集成 ============ -->
+<div class="view" id="vNotify">
+  <div class="bar"><button class="ib" onclick="go('#/settings')">‹</button><h1>通知和集成</h1><span class="ib"></span></div>
+  <main>
+    <div class="sect">网页访问地址</div>
+    <div class="list"><div class="li"><input type="text" id="nfPublic" placeholder="http://192.168.1.10:8000" inputmode="url" onchange="saveNotify({public_url:this.value})"></div></div>
+    <p class="pvcap" style="margin-top:-4px">通知里点开网页、按按钮加留言用</p>
+
+    <div class="sect">手机通知</div>
+    <div class="list">
+      <div class="li"><div class="t">渠道</div><select id="nfKind" class="sel-in" onchange="saveNotify({notify:{kind:this.value}})">
+        <option value="">不通知</option><option value="ntfy">ntfy</option><option value="bark">Bark</option></select></div>
+      <div class="li nf-on"><span class="k-in">地址</span><input type="text" id="nfUrl" inputmode="url" onchange="saveNotify({notify:{url:this.value.trim()}})"></div>
+      <div class="li nf-on nf-ntfy"><span class="k-in">Token</span><input type="text" id="nfToken" placeholder="可选" onchange="saveNotify({notify:{token:this.value.trim()}})"></div>
+      <div id="nfEvents" class="nf-on"></div>
+    </div>
+    <div class="nf-on" style="text-align:right;margin:-4px 0 8px"><button class="btn" onclick="testNotify()">发一条试试</button></div>
+
+    <div class="sect">Webhook（给 Home Assistant 等）</div>
+    <div class="list">
+      <div class="li"><span class="k-in">地址</span><input type="text" id="whUrl" placeholder="http://ha:8123/api/webhook/…" inputmode="url" onchange="saveNotify({webhook:{url:this.value.trim()}})"></div>
+      <div id="whEvents"></div>
+    </div>
+    <div style="text-align:right;margin:-4px 0 8px"><button class="btn" onclick="testWebhook()">发一条试试</button></div>
+
+    <div class="sect">外部接口（点一下复制）</div>
+    <div class="list" id="nfApis"></div>
+    <p class="pvcap">用法和 Home Assistant 示例见项目的 docs/integrations.md</p>
+  </main>
+</div>
+
+<!-- ============ 常用项 ============ -->
+<div class="view" id="vPresets">
+  <div class="bar"><button class="ib" onclick="go('#/settings')">‹</button><h1>常用项</h1><span class="ib"></span></div>
+  <main>
+    <div class="seg" id="presetSeg"></div>
+    <div class="list"><ul class="dishes" id="presetList" style="padding:0"></ul>
+      <div class="li"><input type="text" id="presetNew" placeholder="＋ 新增一项，回车添加" onkeydown="if(event.key==='Enter')addPreset()"><button class="link" onclick="addPreset()">添加</button></div>
+    </div>
+    <div class="list"><div class="li"><div class="t">用得多的自动排到前面<small>关掉就按上面拖的顺序</small></div><button class="switch" id="presetAuto" onclick="toggleAuto()"></button></div></div>
+  </main>
+</div>
+
+<!-- ============ 周期任务 ============ -->
+<div class="view" id="vChores">
+  <div class="bar"><button class="ib" onclick="go('#/settings')">‹</button><h1>周期任务</h1><button class="ib txt" onclick="editChore(null)">新增</button></div>
+  <main>
+    <div class="list" id="choreList"></div>
+    <p class="pvcap">到期后排到阿姨下一个做饭的日子（来了不做饭的日子不排），一天最多一件，其余往后顺延。那天过了就算做过</p>
+  </main>
+</div>
+
+<!-- ============ 菜品库 ============ -->
+<div class="view" id="vDishes">
+  <div class="bar"><button class="ib" onclick="go('#/settings')">‹</button><h1>菜品库</h1><button class="ib txt" onclick="editDish(null)">新增</button></div>
+  <main>
+    <input class="search" id="libQ" placeholder="搜菜名" oninput="renderLib()">
+    <div class="tabs" id="libTabs" style="margin-bottom:10px"></div>
+    <div class="list" id="libList"></div>
+  </main>
+</div>
+
+<!-- ============ 菜单历史 ============ -->
+<div class="view" id="vHistory">
+  <div class="bar"><button class="ib" onclick="go('#/settings')">‹</button><h1>菜单历史</h1><span class="ib"></span></div>
+  <main><div class="list" id="histList"></div></main>
+</div>
+
+<!-- ============ 屏幕 ============ -->
+<div class="view" id="vScreen">
+  <div class="bar"><button class="ib" onclick="go('#/settings')">‹</button><h1>屏幕</h1><span class="ib"></span></div>
+  <main>
+    <div class="sect">状态</div>
+    <div class="list" id="scrState"></div>
+    <div class="sect">每天几点醒来拉菜单（红色那个跟着下面的切换时间走；改了下次醒来生效）</div>
+    <div class="list"><div class="times" id="wakeTimes"></div></div>
+    <div class="list">
+      <div class="li"><div class="t">几点后显示明天的菜单<small>明天已经录好才切</small></div><input type="time" id="switchTime" onchange="saveSettings({switch_time:this.value})" style="font:inherit;border:0;background:none"></div>
+    </div>
+  </main>
+</div>
+
+<!-- ============ 日志 ============ -->
+<div class="view" id="vLogs">
+  <div class="bar"><button class="ib" onclick="go('#/settings')">‹</button><h1>日志</h1><button class="ib txt" onclick="renderLogs()">刷新</button></div>
+  <main>
+    <div class="seg"><button id="lgDev" onclick="logKind='device';renderLogs()">屏幕</button><button id="lgEdit" onclick="logKind='edits';renderLogs()">修改</button></div>
+    <div class="list log" id="logList"></div>
+  </main>
+</div>
+
+<!-- ============ 选菜页 ============ -->
+<div class="picker" id="picker">
+  <div class="top">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <button class="link" onclick="closePicker(false)">取消</button><b style="flex:1;text-align:center" id="ptitle">选菜</b><button class="link" style="font-weight:700" onclick="closePicker(true)">完成</button></div>
+    <input class="search" id="pq" placeholder="搜菜名或原料，比如：鸡蛋" oninput="renderGrid()">
+    <div class="tabs" id="ptabs"></div>
+  </div>
+  <div class="grid" id="pgrid"></div>
+  <div class="foot"><div class="sel" id="psel"></div><button class="btn red" onclick="closePicker(true)">完成</button></div>
+</div>
+
+<!-- ============ 弹层 ============ -->
+<div class="sheet-bg" id="shText" onclick="if(event.target===this)closeSheet('shText')"><div class="sheet">
+  <h3 id="txTitle"></h3>
+  <textarea id="txArea" oninput="markChips()"></textarea>
+  <div class="hint">常用（点一下加到上面，再点一下删掉）：</div>
+  <div class="chips" id="txChips"></div>
+  <div class="acts"><button class="btn" onclick="closeSheet('shText')">取消</button><button class="btn red" onclick="saveText()">确定</button></div>
+</div></div>
+
+<div class="sheet-bg" id="shPreview" onclick="if(event.target===this)closeSheet('shPreview')"><div class="sheet">
+  <h3>屏幕效果</h3><img class="pv" id="pvBig">
+  <div class="acts"><button class="btn" onclick="closeSheet('shPreview')">关闭</button></div>
+</div></div>
+
+<div class="sheet-bg" id="shDish" onclick="if(event.target===this)closeSheet('shDish')"><div class="sheet">
+  <h3 id="deTitle"></h3>
+  <img class="photo" id="dePhoto" style="display:none">
+  <div class="field"><label>菜名</label><input type="text" id="deName"></div>
+  <div class="field"><label>分类</label><select id="deCat"></select></div>
+  <div class="field"><label>主要原料（逗号或换行分隔，以后自动买菜用）</label><textarea id="deIng" style="min-height:60px"></textarea></div>
+  <div class="field"><label>照片</label><input type="file" id="deFile" accept="image/*" onchange="pickPhoto(this)"></div>
+  <div id="deDesc" class="hint"></div>
+  <div class="acts">
+    <button class="btn danger" id="deHide" style="margin-right:auto" onclick="hideDish()"></button>
+    <button class="btn" onclick="closeSheet('shDish')">取消</button><button class="btn red" onclick="saveDish()">保存</button></div>
+</div></div>
+
+<div class="sheet-bg" id="shHist" onclick="if(event.target===this)closeSheet('shHist')"><div class="sheet">
+  <h3 id="hsTitle"></h3>
+  <div class="field"><label>复制到哪天</label><input type="date" id="hsTo" style="font:inherit;padding:8px;border:1px solid var(--line);border-radius:10px;width:100%"></div>
+  <div class="acts"><button class="btn danger" style="margin-right:auto" onclick="histDelete()">删除这天</button>
+    <button class="btn" onclick="histOpen()">打开编辑</button><button class="btn red" onclick="histCopy()">复制</button></div>
+</div></div>
+
+<div class="sheet-bg" id="shStock" onclick="if(event.target===this)closeSheet('shStock')"><div class="sheet">
+  <h3 id="skTitle"></h3>
+  <div class="hint" id="skInfo" style="margin-top:0"></div>
+  <div class="stepper"><button onclick="stepStock(-1)">−</button><b id="skNum"></b><button onclick="stepStock(1)">＋</button></div>
+  <div class="acts"><button class="btn danger" style="margin-right:auto" onclick="setStock(0, 'thrown')">扔了</button>
+    <button class="btn" onclick="setStock(0, 'used')">用完了</button><button class="btn red" onclick="setStock(skLeft, 'fix')">保存</button></div>
+</div></div>
+
+<div class="sheet-bg" id="shAdd" onclick="if(event.target===this)closeSheet('shAdd')"><div class="sheet">
+  <h3>记一笔</h3>
+  <textarea id="addText" placeholder="土豆 3个、鸡蛋 10个、白菜 1颗"></textarea>
+  <div class="hint">没导入的、别人送的都记这里。外部导入的订单会自动记，不用重复记</div>
+  <div class="acts"><button class="btn" onclick="closeSheet('shAdd')">取消</button><button class="btn red" onclick="addStock()">记下</button></div>
+</div></div>
+
+<div class="sheet-bg" id="shChore" onclick="if(event.target===this)closeSheet('shChore')"><div class="sheet">
+  <h3 id="chTitle"></h3>
+  <div class="hint" id="chInfo" style="margin-top:0"></div>
+  <div class="acts"><button class="btn" style="margin-right:auto" onclick="closeSheet('shChore');editChore(chId)">改设置</button>
+    <button class="btn" onclick="closeSheet('shChore')">关闭</button><button class="btn red" onclick="skipChore()">这次不做</button></div>
+</div></div>
+
+<div class="sheet-bg" id="shChoreEdit" onclick="if(event.target===this)closeSheet('shChoreEdit')"><div class="sheet">
+  <h3 id="ceTitle"></h3>
+  <div class="field"><label>名称（屏幕上的留言）</label><input type="text" id="ceName" placeholder="比如：擦楼梯" style="font:inherit;padding:8px;border:1px solid var(--line);border-radius:10px;width:100%"></div>
+  <div class="field"><label>多久一次</label><div style="display:flex;gap:8px;align-items:center">每
+    <input type="number" id="ceEvery" min="1" inputmode="numeric" style="font:inherit;padding:8px;border:1px solid var(--line);border-radius:10px;width:72px">
+    <select id="ceUnit" style="font:inherit;padding:8px;border:1px solid var(--line);border-radius:10px;background:#fff"><option value="d">天</option><option value="w">周</option><option value="m">个月</option></select></div></div>
+  <div class="field"><label>上次做是哪天</label><input type="date" id="ceLast" style="font:inherit;padding:8px;border:1px solid var(--line);border-radius:10px;width:100%"></div>
+  <div class="acts"><button class="btn danger" id="ceDel" style="margin-right:auto" onclick="deleteChore()">删除</button>
+    <button class="btn" onclick="closeSheet('shChoreEdit')">取消</button><button class="btn red" onclick="saveChore()">保存</button></div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const WEEK = "日一二三四五六";
+const LABEL = {steam: "蒸", tasks: "留言", note: "备注"};
+const MODE = {cook: "做饭", cat: "不做饭", off: "不来"};
+let LIB = [], CATS = [], PRESETS = {}, SET = {}, DEV = {}, MENUS = [];
+let day = "", cur = null, txKey = "", pickSel = [], pickTab = "常吃", presetKey = "steam", libTab = "全部", logKind = "device";
+let editId = null, editPhoto = null, histDate = null, replaceIdx = null, STKD = {}, CHORES = [], chId = null;
+
+// ---------- 工具 ----------
+const api = async (url, opt) => {
+  const r = await fetch(url, opt);
+  if (!r.ok) { const t = await r.text(); let m = t; try { m = JSON.parse(t).detail || t; } catch (e) {} throw new Error(m || r.status); }
+  return r.json();
+};
+const J = (method, body) => ({method, headers: {"content-type": "application/json"}, body: JSON.stringify(body)});
+const ymd = d => d.toLocaleDateString("sv-SE");
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+const toast = m => { const t = $("toast"); t.textContent = m; t.classList.add("on"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("on"), 1800); };
+const openSheet = id => $(id).classList.add("on");
+const closeSheet = id => $(id).classList.remove("on");
+const go = h => { location.hash = h; };
+function hue(s) { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360; return h; }
+function thumb(d, cls) {
+  return d && d.img ? `<img class="${cls}" src="${d.img}" loading="lazy">`
+    : `<div class="${cls} ph" style="background:hsl(${hue(d.name)},45%,55%)">${esc(d.name.slice(0, 2))}</div>`;
+}
+const fmtT = s => s ? s.slice(5, 16).replace("T", " ") : "";
+const bars = n => n == null ? "—" : n + " 格";
+function splitList(key, text) {
+  // 留言一行一件事（事情里可能有逗号）；蒸可以用顿号逗号分隔
+  const re = key === "tasks" ? /\n+/ : /[\n、，,；;]+/;
+  return text.split(re).map(x => x.trim()).filter(Boolean);
+}
+
+// 列表拖动排序：按住 ≡ 上下拖
+function sortable(ul, onDone) {
+  ul.querySelectorAll(".handle").forEach(h => {
+    h.onpointerdown = e => {
+      const li = h.closest("li"); e.preventDefault(); h.setPointerCapture(e.pointerId);
+      li.classList.add("drag"); let lastY = e.clientY;
+      h.onpointermove = ev => {
+        const dy = ev.clientY - lastY;
+        const prev = li.previousElementSibling, next = li.nextElementSibling;
+        if (dy < 0 && prev && ev.clientY < prev.getBoundingClientRect().top + prev.offsetHeight / 2) { ul.insertBefore(li, prev); lastY = ev.clientY; }
+        else if (dy > 0 && next && ev.clientY > next.getBoundingClientRect().top + next.offsetHeight / 2) { ul.insertBefore(next, li); lastY = ev.clientY; }
+      };
+      h.onpointerup = h.onpointercancel = () => {
+        h.onpointermove = h.onpointerup = h.onpointercancel = null; li.classList.remove("drag");
+        onDone([...ul.children].map(x => x.dataset.v));
+      };
+    };
+  });
+}
+
+// ---------- 数据 ----------
+async function loadMeta() {
+  const [lib, pre, st, dev, menus] = await Promise.all([api("/api/dishes"), api("/api/presets"), api("/api/settings"), api("/api/device"), api("/api/menus?days=400")]);
+  LIB = lib.dishes; CATS = lib.cats; PRESETS = pre; SET = st; DEV = dev; MENUS = menus;
+}
+async function saveMenu(msg = "已保存") {
+  try {
+    cur = await api("/api/menu/" + day, J("PUT", cur));
+    toast(msg + "，屏幕下次醒来时更新");
+    MENUS = await api("/api/menus?days=400");
+    renderMain();
+  } catch (e) { toast("保存失败：" + e.message); }
+}
+
+// ---------- 主界面 ----------
+function dayLabel(k) {
+  const t = ymd(new Date()), d = new Date(k + "T00:00");
+  const diff = Math.round((d - new Date(t + "T00:00")) / 86400000);
+  const rel = {0: "今天", 1: "明天", 2: "后天", "-1": "昨天"}[diff] || "";
+  return [`${d.getMonth() + 1}月${d.getDate()}日 周${WEEK[d.getDay()]}`, rel];
+}
+async function setDay(k) {
+  day = k; cur = await api("/api/menu/" + k);
+  renderMain();
+}
+function shiftDay(n) { const d = new Date(day + "T00:00"); d.setDate(d.getDate() + n); setDay(ymd(d)); }
+function renderMain() {
+  const [t, rel] = dayLabel(day);
+  $("dayTitle").textContent = t; $("daySub").textContent = rel; $("datePick").value = day;
+  // 预览图下面只放两件事：屏幕上次刷新、下次推送
+  const s = DEV, cap = $("pvcap");
+  if (!s.seen) { cap.textContent = "屏幕还没连上过"; cap.className = "pvcap"; }
+  else {
+    const hrs = (Date.now() - new Date(s.seen)) / 3600000;
+    cap.className = "pvcap" + (hrs > 26 ? " warn" : "");
+    cap.innerHTML = hrs > 26 ? `⚠ 屏幕 ${fmtT(s.seen)} 之后没联网，按一下屏幕前面的键看看`
+      : `上次刷新 ${fmtT(s.seen)} · 下次推送 ${(s.next_wake || "").slice(11, 16)}`;
+  }
+  // 这天阿姨：做饭 / 不做饭 / 不来（设置里不来的星期几固定不来）
+  const wd = (new Date(day + "T00:00").getDay() + 6) % 7, sun = !SET.schedule.workdays.includes(wd), mode = sun ? "off" : (cur.mode || "cook");
+  $("modeSel").value = mode; $("modeSel").disabled = sun;
+  $("modeTxt").textContent = MODE[mode];
+  $("modeBtn").className = "modebtn" + (mode === "cook" ? "" : " alt") + (sun ? " dis" : "");
+  $("offHint").textContent = sun ? `周${WEEK[new Date(day + "T00:00").getDay()]}阿姨不来，屏幕显示下一个来的日子` : "这天阿姨不来，屏幕显示下一个来的日子";
+  $("offHint").style.display = mode === "off" ? "" : "none";
+  $("cDishes").style.display = mode === "cook" ? "" : "none";
+  $("rSteam").style.display = mode === "cook" ? "" : "none";
+  $("rTasks").style.borderTop = mode === "cook" ? "" : "0";
+  $("cTasks").style.display = $("pvThumb").style.display = mode === "off" ? "none" : "";
+  const ul = $("dishList");
+  ul.innerHTML = cur.dishes.length ? cur.dishes.map((n, i) => `<li data-v="${esc(n)}"><span class="handle">≡</span><span class="no">${i + 1}</span><span class="nm" data-i="${i}">${esc(n)}</span><button class="x" data-i="${i}">✕</button></li>`).join("")
+    : `<li style="color:var(--muted);justify-content:center">还没有菜</li>`;
+  ul.querySelectorAll(".x").forEach(b => b.onclick = () => { cur.dishes.splice(+b.dataset.i, 1); saveMenu("已删除"); });
+  ul.querySelectorAll(".nm[data-i]").forEach(el => el.onclick = () => openPicker(+el.dataset.i));
+  sortable(ul, order => { cur.dishes = order; saveMenu("顺序已保存"); });
+  const show = (id, v, ph) => { $(id).textContent = v || ph; $(id).className = "v" + (v ? "" : " ph"); };
+  show("vNote", cur.note, "比如：3人份，少盐");
+  show("vSteam", cur.steam.join("、"), "要蒸的东西");
+  const chores = (cur.chores || []).filter(c => !cur.tasks.includes(c.name));
+  show("vTasks", cur.tasks.join("\n"), "给阿姨的事，比如晒被子");
+  // 自动化加的留言带个标签，和手写的区分开（屏幕上不区分）；周期任务点标签能顺延
+  const auto = new Set(cur.auto || []);
+  if (cur.tasks.length || chores.length) {
+    $("vTasks").className = "v";
+    $("vTasks").innerHTML = [...cur.tasks.map(t => esc(t) + (auto.has(t) ? `<span class="tag">自动·洗衣机</span>` : "")),
+      ...chores.map(c => `${esc(c.name)}<span class="tag" data-chore="${c.id}">周期·${esc(c.label)} ›</span>`)].join("\n");
+    $("vTasks").querySelectorAll("[data-chore]").forEach(el => el.onclick = e => { e.stopPropagation(); openChore(+el.dataset.chore); });
+  }
+  // 洗衣机洗完但推送没点：留言下面出一条建议
+  $("sugBox").innerHTML = (cur.suggest || []).map(g => `<div class="sug">🧺 ${esc(g.reason)}<div class="acts">
+      <button class="ok" onclick="acceptSug('${esc(g.text)}')">＋ 加「${esc(g.text)}」</button><button onclick="dismissSug()">忽略</button></div></div>`).join("");
+  $("pvThumb").src = $("pvBig").src = `/preview.png?date=${day}&t=${Date.now()}`;
+  renderMiss(mode);
+}
+// 「菜」下面一行：这天的菜家里还缺什么（只看今天和以后、阿姨做饭的日子）
+async function renderMiss(mode) {
+  const el = $("missLine"), k = day;
+  el.style.display = "none";
+  if (mode !== "cook" || k < ymd(new Date()) || !cur.dishes.length) return;
+  try {
+    const r = await api("/api/shopping/" + k);
+    if (k !== day || !r.missing.length) return;
+    el.textContent = "还缺：" + r.missing.join("、"); el.style.display = "";
+  } catch (e) {}
+}
+async function acceptSug(text) {
+  try { cur = await api(`/api/menu/${day}/tasks`, J("POST", {text, auto: true, source: "web"})); toast("已加到留言，屏幕下次醒来时更新"); renderMain(); }
+  catch (e) { toast("保存失败：" + e.message); }
+}
+async function dismissSug() {
+  try { await api("/api/laundry/dismiss", {method: "POST"}); cur.suggest = []; renderMain(); } catch (e) { toast("失败：" + e.message); }
+}
+// ---------- 周期任务 ----------
+const md = k => { const d = new Date(k + "T00:00"); return `${d.getMonth() + 1}月${d.getDate()}日 周${WEEK[d.getDay()]}`; };
+function openChore(id) {
+  const c = cur.chores.find(x => x.id === id); chId = id;
+  $("chTitle").textContent = `${c.name} · ${c.label}`;
+  $("chInfo").textContent = `上次 ${md(c.last)}。这天不做的话，顺延到阿姨下一个做饭的日子`;
+  openSheet("shChore");
+}
+async function skipChore() {
+  try {
+    CHORES = await api(`/api/chores/${chId}/skip`, J("POST", {date: day}));
+    const c = CHORES.find(x => x.id === chId); closeSheet("shChore");
+    toast(`已顺延到 ${md(c.next)}`); setDay(day);
+  } catch (e) { toast("失败：" + e.message); }
+}
+function renderChores() {
+  $("choreList").innerHTML = CHORES.length ? CHORES.map(c => `<div class="li" onclick="editChore(${c.id})"><div class="t">${esc(c.name)}<small>${esc(c.label)} · 上次 ${md(c.last)}</small></div><span class="r">下次 ${md(c.next)} ›</span></div>`).join("")
+    : `<div class="li"><div class="t" style="color:var(--muted)">还没有，点右上角新增</div></div>`;
+}
+async function editChore(id) {
+  if (!CHORES.length) CHORES = await api("/api/chores");
+  const c = CHORES.find(x => x.id === id) || {name: "", every: 2, unit: "w", last: ymd(new Date())};
+  chId = id; $("ceTitle").textContent = id ? "改周期任务" : "新增周期任务";
+  $("ceName").value = c.name; $("ceEvery").value = c.every; $("ceUnit").value = c.unit; $("ceLast").value = c.last;
+  $("ceDel").style.display = id ? "" : "none";
+  openSheet("shChoreEdit");
+}
+async function choreDone(p, msg) {
+  try { CHORES = await p; closeSheet("shChoreEdit"); toast(msg); renderChores(); if (day) setDay(day); }
+  catch (e) { toast("失败：" + e.message); }
+}
+function saveChore() {
+  const body = {name: $("ceName").value, every: +$("ceEvery").value, unit: $("ceUnit").value, last: $("ceLast").value};
+  choreDone(api(chId ? `/api/chores/${chId}` : "/api/chores", J(chId ? "PUT" : "POST", body)), "已保存，屏幕下次醒来时更新");
+}
+function deleteChore() {
+  if (!confirm("删除这个周期任务？")) return;
+  choreDone(api(`/api/chores/${chId}`, {method: "DELETE"}), "已删除");
+}
+
+function setMode(m) { cur.mode = m; saveMenu("已改成" + MODE[m]); }
+function copyLast() {
+  const last = MENUS.filter(m => m.date < day && m.dishes && m.dishes.length).sort((a, b) => b.date.localeCompare(a.date))[0];
+  if (!last) return toast("之前还没有菜单");
+  if (cur.dishes.length && !confirm(`用 ${last.date.slice(5)} 的菜和蒸的东西替换现在的？`)) return;
+  cur.dishes = [...last.dishes]; cur.steam = [...(last.steam || [])];
+  saveMenu(`已复制 ${last.date.slice(5)} 的菜单`);
+}
+
+// ---------- 蒸 / 留言 / 备注 弹窗 ----------
+function openText(key) {
+  txKey = key; $("txTitle").textContent = LABEL[key];
+  $("txArea").value = key === "note" ? cur.note : cur[key].join(key === "tasks" ? "\n" : "、");
+  $("txArea").placeholder = key === "tasks" ? "一行一件事" : key === "steam" ? "用顿号或换行分开" : "随便写";
+  $("txChips").innerHTML = (PRESETS[key] || []).map(o => `<button class="chip" data-v="${esc(o)}">${esc(o)}</button>`).join("") || `<span class="hint">在设置 › 常用项里添加</span>`;
+  $("txChips").querySelectorAll(".chip").forEach(c => c.onclick = () => toggleChip(c.dataset.v));
+  markChips(); openSheet("shText");
+}
+function txTokens() { return txKey === "note" ? splitList("steam", $("txArea").value) : splitList(txKey, $("txArea").value); }
+function markChips() { const t = txTokens(); $("txChips").querySelectorAll(".chip").forEach(c => c.classList.toggle("on", t.includes(c.dataset.v))); }
+function toggleChip(v) {
+  let t = txTokens();
+  t = t.includes(v) ? t.filter(x => x !== v) : [...t, v];
+  $("txArea").value = t.join(txKey === "tasks" ? "\n" : txKey === "note" ? "，" : "、");
+  markChips();
+}
+function saveText() {
+  const v = $("txArea").value;
+  if (txKey === "note") cur.note = v.trim(); else cur[txKey] = splitList(txKey, v);
+  closeSheet("shText"); saveMenu();
+}
+
+// ---------- 选菜页 ----------
+function openPicker(idx = null) {
+  replaceIdx = idx;
+  $("ptitle").textContent = idx == null ? "选菜" : `替换第 ${idx + 1} 道：${cur.dishes[idx]}`;
+  document.querySelector("#picker .foot").style.display = idx == null ? "" : "none";
+  pickSel = [...cur.dishes]; $("pq").value = ""; pickTab = LIB.some(d => d.count) ? "常吃" : "荤菜"; STKD = {};
+  renderTabs(); renderGrid(); $("picker").classList.add("on");
+  // 按这天阿姨来之前的库存，标出原料齐 / 只缺一样的菜；有的话默认打开「家里有」
+  const k = day;
+  api("/api/stock/dishes?date=" + k).then(r => {
+    if (k !== day || !$("picker").classList.contains("on")) return;
+    STKD = Object.fromEntries(r.dishes.map(d => [d.name, d]));
+    if (r.dishes.length && !$("pq").value.trim()) pickTab = "家里有";
+    renderTabs(); renderGrid();
+  }).catch(() => {});
+}
+function closePicker(ok) {
+  $("picker").classList.remove("on");
+  if (ok && JSON.stringify(pickSel) !== JSON.stringify(cur.dishes)) { cur.dishes = pickSel; saveMenu(); }
+}
+function renderTabs() {
+  const used = new Set(LIB.filter(d => !d.hidden).map(d => d.cat));
+  const tabs = [...(Object.keys(STKD).length ? ["家里有"] : []), "常吃", ...CATS.filter(c => used.has(c) || c === "自定义"), "全部"];
+  $("ptabs").innerHTML = tabs.map(t => `<button class="tab ${t === pickTab ? "on" : ""}" data-t="${t}">${t}</button>`).join("");
+  $("ptabs").querySelectorAll(".tab").forEach(b => b.onclick = () => { pickTab = b.dataset.t; renderTabs(); renderGrid(); });
+}
+function renderGrid() {
+  const q = $("pq").value.trim(), pool = LIB.filter(d => !d.hidden);
+  let list;
+  if (q) list = pool.filter(d => d.name.includes(q) || d.ingredients.some(x => x.includes(q)))
+    .sort((a, b) => (b.name.includes(q) - a.name.includes(q)) || (b.count - a.count) || (!!b.img - !!a.img));
+  else if (pickTab === "家里有") list = pool.filter(d => STKD[d.name]).sort((a, b) => {
+    const x = STKD[a.name], y = STKD[b.name];  // 原料齐的在前，其中用到快坏食材的最前；再按吃过几次
+    return (x.missing.length - y.missing.length) || (y.soon - x.soon) || (b.count - a.count);
+  });
+  else if (pickTab === "常吃") list = pool.filter(d => d.count).sort((a, b) => b.count - a.count || (b.last || "").localeCompare(a.last || ""));
+  else list = (pickTab === "全部" ? pool : pool.filter(d => d.cat === pickTab)).slice().sort((a, b) => (b.count - a.count) || (!!b.img - !!a.img));
+  const sel = new Set(pickSel);
+  let html = (pickTab === "自定义" || q) ? `<button class="dc new" onclick="editDish(null, $('pq').value.trim())"><b style="font-size:26px">＋</b>添加新菜</button>` : "";
+  const badge = d => { const s = STKD[d.name]; return s ? `<span class="sb ${s.missing.length ? "" : "ok"}">${s.missing.length ? "缺1" : "齐"}${s.soon ? " ⚠" : ""}</span>` : ""; };
+  const miss = d => pickTab === "家里有" && STKD[d.name]?.missing.length ? `<div class="ms">缺${esc(STKD[d.name].missing[0])}</div>` : "";
+  html += list.slice(0, 300).map(d => `<button class="dc ${sel.has(d.name) ? "on" : ""}" data-n="${esc(d.name)}">${thumb(d, "im")}${d.count ? `<span class="cnt">${d.count}次</span>` : ""}${badge(d)}<div class="nm">${esc(d.name)}</div>${miss(d)}</button>`).join("");
+  if (!list.length && !q && pickTab === "常吃") html = `<div class="empty">还没有记录，先去「荤菜」「素菜」里选</div>`;
+  else if (!list.length && q) html += `<div class="empty">没找到「${esc(q)}」，可以点左边添加</div>`;
+  $("pgrid").innerHTML = html;
+  $("pgrid").querySelectorAll(".dc[data-n]").forEach(b => b.onclick = () => {
+    const n = b.dataset.n, i = pickSel.indexOf(n);
+    if (replaceIdx != null) {  // 替换模式：点一道就换掉这一条
+      if (n === cur.dishes[replaceIdx]) return closePicker(false);
+      if (i >= 0) return toast("这道已经在菜单里了");
+      cur.dishes[replaceIdx] = n; $("picker").classList.remove("on"); saveMenu(`已换成${n}`); return;
+    }
+    i >= 0 ? pickSel.splice(i, 1) : pickSel.push(n);
+    b.classList.toggle("on"); renderPickSel();
+  });
+  renderPickSel();
+}
+function renderPickSel() { $("psel").textContent = pickSel.length ? `已选 ${pickSel.length} 道：${pickSel.join("、")}` : "还没选"; }
+
+// ---------- 菜品编辑（新增/修改/隐藏）----------
+function resize(file, max = 800) {
+  return new Promise((ok, no) => {
+    const img = new Image();
+    img.onload = () => {
+      const s = Math.min(1, max / Math.max(img.width, img.height)), c = document.createElement("canvas");
+      c.width = img.width * s; c.height = img.height * s; c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      ok(c.toDataURL("image/jpeg", .82));
+    };
+    img.onerror = no; img.src = URL.createObjectURL(file);
+  });
+}
+async function pickPhoto(inp) { if (!inp.files[0]) return; editPhoto = await resize(inp.files[0]); $("dePhoto").src = editPhoto; $("dePhoto").style.display = "block"; }
+async function editDish(id, name = "") {
+  editId = id; editPhoto = null; $("deFile").value = "";
+  $("deCat").innerHTML = CATS.map(c => `<option>${c}</option>`).join("");
+  const lib = id && LIB.find(d => d.id === id);
+  if (lib && !id.startsWith("h-")) {
+    const d = await api("/api/dishes/" + id);
+    $("deTitle").textContent = "编辑菜"; $("deName").value = d.name; $("deCat").value = d.cat;
+    $("deIng").value = (d.ingredients || []).map(i => i.name).join("，");
+    $("dePhoto").src = lib.img || ""; $("dePhoto").style.display = lib.img ? "block" : "none";
+    $("deDesc").textContent = d.desc || "";
+    $("deHide").style.display = ""; $("deHide").textContent = lib.custom ? "删除" : (lib.hidden ? "取消隐藏" : "隐藏");
+  } else {
+    editId = null;
+    $("deTitle").textContent = "添加新菜"; $("deName").value = lib ? lib.name : name; $("deCat").value = "自定义";
+    $("deIng").value = ""; $("dePhoto").style.display = "none"; $("deDesc").textContent = ""; $("deHide").style.display = "none";
+  }
+  openSheet("shDish");
+}
+async function saveDish() {
+  const name = $("deName").value.trim();
+  if (!name) return toast("菜名不能为空");
+  try {
+    if (editId) {
+      await api("/api/dishes/" + editId, J("PUT", {name, cat: $("deCat").value, ingredients: $("deIng").value}));
+      if (editPhoto) await api(`/api/dishes/${editId}/photo`, J("PUT", {photo: editPhoto}));
+    } else {
+      await api("/api/dishes", J("POST", {name, cat: $("deCat").value, ingredients: $("deIng").value, photo: editPhoto}));
+      if ($("picker").classList.contains("on")) {
+        if (replaceIdx != null) { cur.dishes[replaceIdx] = name; $("picker").classList.remove("on"); await saveMenu(`已换成${name}`); }
+        else if (!pickSel.includes(name)) pickSel.push(name);
+      }
+    }
+    closeSheet("shDish"); await loadMeta(); toast("已保存");
+    if ($("picker").classList.contains("on")) { renderTabs(); renderGrid(); }
+    route();
+  } catch (e) { toast(String(e.message).includes("已经有") ? "已经有这道菜了" : "保存失败"); }
+}
+async function hideDish() {
+  const lib = LIB.find(d => d.id === editId);
+  if (lib.custom) { if (!confirm("删除这道自己加的菜？")) return; await api("/api/dishes/" + editId, {method: "DELETE"}); }
+  else await api("/api/dishes/" + editId, J("PUT", {hidden: !lib.hidden}));
+  closeSheet("shDish"); await loadMeta(); route();
+}
+
+// ---------- 设置：常用项 ----------
+function renderPresets() {
+  $("presetSeg").innerHTML = ["steam", "tasks", "note"].map(k => `<button class="${k === presetKey ? "on" : ""}" onclick="presetKey='${k}';renderPresets()">${LABEL[k]}</button>`).join("");
+  const items = SET.presets[presetKey];
+  const ul = $("presetList");
+  ul.innerHTML = items.map((v, i) => `<li data-v="${esc(v)}"><span class="handle">≡</span><input type="text" value="${esc(v)}" data-i="${i}" style="flex:1;font:inherit;border:0;background:none"><button class="x" data-i="${i}">✕</button></li>`).join("");
+  ul.querySelectorAll("input").forEach(inp => inp.onchange = () => { const a = [...items]; a[+inp.dataset.i] = inp.value.trim(); savePresets(a.filter(Boolean)); });
+  ul.querySelectorAll(".x").forEach(b => b.onclick = () => savePresets(items.filter((_, i) => i !== +b.dataset.i)));
+  sortable(ul, order => savePresets(order));
+  $("presetAuto").classList.toggle("on", !!SET.auto_sort[presetKey]);
+}
+async function savePresets(list) { SET = await api("/api/settings", J("PUT", {presets: {[presetKey]: list}})); PRESETS = await api("/api/presets"); renderPresets(); toast("已保存"); }
+function addPreset() { const v = $("presetNew").value.trim(); if (!v) return; $("presetNew").value = ""; savePresets([...SET.presets[presetKey].filter(x => x !== v), v]); }
+async function toggleAuto() { SET = await api("/api/settings", J("PUT", {auto_sort: {[presetKey]: !SET.auto_sort[presetKey]}})); PRESETS = await api("/api/presets"); renderPresets(); }
+async function saveSettings(p) { try { SET = await api("/api/settings", J("PUT", p)); toast("已保存，屏幕下次醒来生效"); renderScreen(); } catch (e) { toast("保存失败"); } }
+
+// ---------- 设置：菜品库 ----------
+function renderLib() {
+  const tabs = ["全部", ...CATS, "已隐藏"];
+  $("libTabs").innerHTML = tabs.map(t => `<button class="tab ${t === libTab ? "on" : ""}" data-t="${t}">${t}</button>`).join("");
+  $("libTabs").querySelectorAll(".tab").forEach(b => b.onclick = () => { libTab = b.dataset.t; renderLib(); });
+  const q = $("libQ").value.trim();
+  let list = LIB.filter(d => libTab === "已隐藏" ? d.hidden : !d.hidden && (libTab === "全部" || d.cat === libTab));
+  if (q) list = list.filter(d => d.name.includes(q));
+  list.sort((a, b) => (b.count - a.count) || a.name.localeCompare(b.name, "zh"));
+  $("libList").innerHTML = list.slice(0, 400).map(d => `<div class="li" data-id="${d.id}">${thumb(d, "thumb")}<div class="t">${esc(d.name)}<small>${d.cat}${d.count ? " · 用过 " + d.count + " 次" : ""}${d.custom ? " · 自己加的" : ""}${d.ingredients.length ? "" : " · 没有原料"}</small></div><span class="r">›</span></div>`).join("") || `<div class="empty">没有</div>`;
+  $("libList").querySelectorAll(".li[data-id]").forEach(el => el.onclick = () => editDish(el.dataset.id));
+}
+
+// ---------- 设置：菜单历史 ----------
+function renderHistory() {
+  $("histList").innerHTML = MENUS.map(m => {
+    const [t] = dayLabel(m.date);
+    return `<div class="li" data-d="${m.date}"><div class="t">${t}<small>${m.mode === "cat" ? "不做饭" : m.mode === "off" ? "不来" : esc((m.dishes || []).join("、") || "（没有菜）")}</small></div><span class="r">›</span></div>`;
+  }).join("") || `<div class="empty">还没有菜单</div>`;
+  $("histList").querySelectorAll(".li[data-d]").forEach(el => el.onclick = () => {
+    histDate = el.dataset.d; $("hsTitle").textContent = dayLabel(histDate)[0]; $("hsTo").value = ymd(new Date()); openSheet("shHist");
+  });
+}
+function histOpen() { closeSheet("shHist"); go("#/"); setDay(histDate); }
+async function histCopy() {
+  const to = $("hsTo").value; if (!to) return;
+  const src = await api("/api/menu/" + histDate);
+  const exist = MENUS.find(m => m.date === to);
+  if (exist && !confirm(`${to} 已经有菜单，覆盖？`)) return;
+  await api("/api/menu/" + to, J("PUT", src)); closeSheet("shHist"); await loadMeta(); renderHistory(); toast("已复制到 " + to.slice(5));
+}
+async function histDelete() {
+  if (!confirm("删除 " + histDate + " 的菜单？")) return;
+  await api("/api/menu/" + histDate, {method: "DELETE"}); closeSheet("shHist"); await loadMeta(); renderHistory(); toast("已删除");
+}
+
+// ---------- 设置：屏幕 ----------
+function renderScreen() {
+  const s = DEV, b = s.battery || {};
+  const rows = [
+    ["上次同步", s.seen ? fmtT(s.seen) + (s.reason === "timer" ? "（定时）" : "（按键）") : "还没连过"],
+    ["下次醒来", fmtT(s.next_wake)],
+    ["电池", s.bat ? `${s.bat} mV · ${s.charging ? "充电中" : bars(s.bat_level)}` : "—"],
+    ["耗电", b.mv_per_day ? `每天约 ${b.mv_per_day} mV` + (b.days_left != null ? ` · 约还能用 ${b.days_left} 天` : "") : "数据还不够（充满后用满一天才能估）"],
+    ["信号", s.rssi ? `${s.rssi} dBm · ${bars(s.wifi_level)}` : "—"],
+    ["厨房", s.temp != null ? `${s.temp.toFixed(1)}℃ ${Math.round(s.hum)}%` : "温湿度传感器还没调通"],
+    ["固件", (s.fw || "—") + (s.fw_latest && s.fw_latest !== s.fw ? ` → 下次醒来升级到 ${s.fw_latest}` : "")],
+    ["正在显示", s.showing ? dayLabel(s.showing)[0] : "—"],
+  ];
+  $("scrState").innerHTML = rows.map(([k, v]) => `<div class="li"><div class="t">${k}</div><span class="r">${esc(v)}</span></div>`).join("");
+  // 切换时间自动算一个醒来时间，只读；手动的可以删
+  const slots = [...SET.wake_times.map(t => ({t, auto: false})), {t: SET.switch_time, auto: true}].sort((a, b) => a.t.localeCompare(b.t));
+  $("wakeTimes").innerHTML = slots.map(x => x.auto
+      ? `<span class="chip" style="background:var(--sel);color:var(--red)">${x.t} 切明天</span>`
+      : `<span class="chip">${x.t}<button class="x" data-t="${x.t}" style="font-size:15px">✕</button></span>`).join("")
+    + `<label class="chip" style="color:var(--red)">＋ 添加<input type="time" id="wakeAdd" style="width:0;opacity:0;position:absolute"></label>`;
+  $("wakeTimes").querySelectorAll(".x").forEach(x => x.onclick = () => {
+    saveSettings({wake_times: SET.wake_times.filter(t => t !== x.dataset.t)});
+  });
+  $("wakeAdd").onchange = e => e.target.value && saveSettings({wake_times: [...SET.wake_times, e.target.value]});
+  $("wakeAdd").parentElement.onclick = () => $("wakeAdd").showPicker ? $("wakeAdd").showPicker() : $("wakeAdd").focus();
+  $("switchTime").value = SET.switch_time;
+}
+
+// ---------- 设置：日志 ----------
+async function renderLogs() {
+  $("lgDev").classList.toggle("on", logKind === "device"); $("lgEdit").classList.toggle("on", logKind === "edits");
+  const rows = await api("/api/logs?kind=" + logKind);
+  if (logKind === "edits") {
+    $("logList").innerHTML = rows.map(r => `<div class="li"><span class="tm">${fmtT(r.time)}</span><div class="t">改了 ${r.menu_date.slice(5)} 的菜单<small>${esc(r.summary || "")}${r.client === "api" ? " · 接口" : ""}</small></div></div>`).join("") || `<div class="empty">还没有记录</div>`;
+    return;
+  }
+  $("logList").innerHTML = rows.map(r => {
+    if (r.type === "webhook_error" || r.type === "notify_error") return `<div class="li"><span class="tm">${fmtT(r.time)}</span><div class="t"><span class="tag red">${r.type === "webhook_error" ? "webhook" : "通知"}失败</span>${esc(EVENT_NAMES[r.event] || r.event)}<small>${esc(r.error || "")}</small></div></div>`;
+    if (r.type === "firmware_published") return `<div class="li"><span class="tm">${fmtT(r.time)}</span><div class="t"><span class="tag green">发布</span>上传固件 ${esc(r.version)}</div></div>`;
+    if (r.type === "firmware") return `<div class="li"><span class="tm">${fmtT(r.time)}</span><div class="t"><span class="tag green">升级</span>下载固件 ${esc(r.version)}</div></div>`;
+    if (r.type === "telemetry") return `<div class="li"><span class="tm">${fmtT(r.time)}</span><div class="t"><span class="tag">传感器</span>${r.temp != null ? r.temp + "℃ " + Math.round(r.hum) + "%" : "没读到"}<small>${esc(r.diag || "")}</small></div></div>`;
+    const why = r.reason === "timer" ? `<span class="tag">定时</span>` : `<span class="tag">按键</span>`;
+    const what = r.drawn ? `<span class="tag green">刷屏</span>` : `<span class="tag">没变化</span>`;
+    const up = r.update_to ? `<span class="tag red">要升级到 ${esc(r.update_to)}</span>` : "";
+    return `<div class="li"><span class="tm">${fmtT(r.time)}</span><div class="t">${why}${what}${up}<small>电池 ${r.bat || "—"} mV · 信号 ${r.rssi || "—"} · ${esc(r.fw)} · 显示 ${(r.showing || "").slice(5)} · 睡 ${Math.round(r.sleep / 60)} 分钟</small></div></div>`;
+  }).join("") || `<div class="empty">还没有记录</div>`;
+}
+
+// ---------- 阿姨的作息 ----------
+const DAY_NAMES = ["一", "二", "三", "四", "五", "六", "日"];  // 0 = 周一，和服务端一致
+function scheduleText(s) {
+  const d = s.workdays, run = d.length > 1 && d.every((x, i) => !i || x === d[i - 1] + 1);
+  const days = !d.length ? "不来" : run ? `周${DAY_NAMES[d[0]]}至周${DAY_NAMES[d.at(-1)]}` : d.map(x => "周" + DAY_NAMES[x]).join("、");
+  return `${days} ${s.arrive}–${s.leave}`;
+}
+function renderSchedule() {
+  const s = SET.schedule;
+  $("schDays").innerHTML = DAY_NAMES.map((n, i) => `<button class="day-chip ${s.workdays.includes(i) ? "on" : ""}" onclick="toggleWorkday(${i})">${n}</button>`).join("");
+  $("schArrive").value = s.arrive; $("schLeave").value = s.leave;
+}
+function toggleWorkday(i) {
+  const w = SET.schedule.workdays;
+  saveSchedule({workdays: w.includes(i) ? w.filter(x => x !== i) : [...w, i]});
+}
+async function saveSchedule(p) {
+  try { SET = await api("/api/settings", J("PUT", {schedule: p})); toast("已保存"); renderSchedule(); }
+  catch (e) { toast("保存失败"); }
+}
+
+// ---------- 通知和集成 ----------
+let EVENT_NAMES = {};
+const NOTIFY_HINT = {ntfy: "https://ntfy.sh/你的主题", bark: "https://api.day.app/你的key"};
+function notifySummary() {
+  const n = SET.notify, w = SET.webhook, parts = [];
+  if (n.kind && n.url) parts.push({ntfy: "ntfy", bark: "Bark"}[n.kind]);
+  if (w.url) parts.push("webhook");
+  return parts.length ? parts.join(" · ") : "推到手机、发给 Home Assistant";
+}
+function switches(boxId, cfg, key) {
+  const names = {...EVENT_NAMES, menu_missing: `菜还没录　<small>前一天 <input type="time" id="nfRemind" class="tm-in" value="${SET.notify.remind_at}" onclick="event.stopPropagation()" onchange="saveNotify({notify:{remind_at:this.value}})"></small>`};
+  const list = key === "notify" ? ["device_missed", "battery_low", "menu_missing", "laundry"] : Object.keys(EVENT_NAMES);
+  $(boxId).innerHTML = list.map(e => `<div class="li"><div class="t">${key === "notify" ? names[e] : esc(EVENT_NAMES[e])}</div>
+    <button class="switch ${cfg.events.includes(e) ? "on" : ""}" onclick="toggleEvent('${key}', '${e}')"></button></div>`).join("");
+}
+function renderNotify() {
+  EVENT_NAMES = SET.events;
+  const n = SET.notify;
+  $("nfPublic").value = SET.public_url || "";
+  $("nfKind").value = n.kind || "";
+  $("nfUrl").value = n.url || ""; $("nfUrl").placeholder = NOTIFY_HINT[n.kind] || "";
+  $("nfToken").value = n.token || "";
+  document.querySelectorAll(".nf-on").forEach(el => el.style.display = n.kind ? "" : "none");
+  document.querySelectorAll(".nf-ntfy").forEach(el => el.style.display = n.kind === "ntfy" ? "" : "none");
+  switches("nfEvents", n, "notify");
+  $("whUrl").value = SET.webhook.url || "";
+  switches("whEvents", SET.webhook, "webhook");
+  const base = SET.public_url || location.origin;
+  $("nfApis").innerHTML = [["加留言", "POST", "/api/hooks/task", '{"text":"收快递"}'], ["洗衣机洗完", "POST", "/api/laundry", "{}"]]
+    .map(([n, m, path, body]) => `<div class="li api-row" onclick="copyApi('${m}', '${base + path}', '${body.replace(/"/g, "&quot;")}')"><div class="t">${n}<small><code>${m} ${esc(path)}</code></small></div><span class="r">复制</span></div>`).join("");
+}
+function toggleEvent(key, e) {
+  const ev = SET[key].events;
+  saveNotify({[key]: {events: ev.includes(e) ? ev.filter(x => x !== e) : [...ev, e]}});
+}
+async function saveNotify(p) {
+  try { SET = await api("/api/settings", J("PUT", p)); toast("已保存"); renderNotify(); }
+  catch (e) { toast("保存失败"); }
+}
+async function testNotify() {
+  try { await api("/api/notify/test", J("POST", {})); toast("发出去了，看看手机"); }
+  catch (e) { toast(e.message); }
+}
+async function testWebhook() {
+  try { const r = await api("/api/webhook/test", J("POST", {})); toast(`发出去了，对方回 ${r.status}`); }
+  catch (e) { toast(e.message); }
+}
+function copyApi(method, url, body) {
+  const cmd = `curl -X ${method} ${url} -H 'content-type: application/json' -d '${body}'`;
+  (navigator.clipboard ? navigator.clipboard.writeText(cmd) : Promise.reject()).then(() => toast("已复制 curl 命令"), () => prompt("复制这条命令", cmd));
+}
+
+// ---------- 家里有什么 ----------
+let STOCK = null, skItem = null, skLeft = 0;
+const UNIT_TXT = (x, n = x.left) => x.unit === "次" ? `够用 ${n} 次` : `${n} ${x.unit}`;
+function dueTxt(x) {
+  if (x.cat === "调料") return "常备";
+  if (x.expired) return `过期 ${-x.days_left} 天，可能坏了`;
+  return x.days_left <= 0 ? "今天到期" : x.days_left === 1 ? "明天到期" : `还能放 ${x.days_left} 天`;
+}
+function renderStock(s) {
+  STOCK = s;
+  const row = (x, i) => `<div class="li stk" onclick="openStock(${i})"><div class="t"><b>${esc(x.ingredient)}</b>　${UNIT_TXT(x)}
+      <small>${x.bought.slice(5).replace("-", "/")} 买 · ${dueTxt(x)}</small></div>
+      ${x.expired || x.days_left <= 1 ? `<button class="act" onclick="event.stopPropagation();setStockOf(${i}, 0, '${x.expired ? "thrown" : "used"}')">${x.expired ? "扔了" : "用完了"}</button>` : `<span class="r">›</span>`}</div>`;
+  const items = s.items.map((x, i) => ({...x, i}));
+  const warn = items.filter(x => x.expired || x.days_left <= 1);
+  $("stkWarn").innerHTML = warn.length ? `<div class="sect" style="color:var(--red)">⚠ 快坏了</div><div class="list">${warn.map(x => row(x, x.i)).join("")}</div>` : "";
+  const rest = items.filter(x => !x.expired && x.days_left > 1);
+  const cats = [...new Set([...s.cats, ...rest.map(x => x.cat || "其他")])];
+  $("stkCats").innerHTML = cats.map(c => {
+    const xs = rest.filter(x => (x.cat || "其他") === c).sort((a, b) => a.days_left - b.days_left);
+    return xs.length ? `<div class="sect">${esc(c)}</div><div class="list">${xs.map(x => row(x, x.i)).join("")}</div>` : "";
+  }).join("") || `<div class="empty">家里好像什么都没有了，点右上角记一笔</div>`;
+  $("stkCook").innerHTML = s.can_cook.length ? s.can_cook.map(esc).join(" · ") : `<span class="hint">没有原料都齐的菜</span>`;
+  renderBought();
+}
+async function renderBought() {
+  const ps = await api("/api/purchases?days=14");
+  const groups = [];
+  for (const p of ps.filter(p => p.ingredient)) {  // 日用品、零食不列
+    const k = p.time.slice(0, 10) + " " + p.channel, g = groups.find(g => g.k === k);
+    g ? g.items.push(p) : groups.push({k, day: p.time.slice(5, 10).replace("-", "/"), channel: p.channel, items: [p]});
+  }
+  const CH = {manual: "手记", screenshot: "截图"};
+  $("stkBought").innerHTML = groups.slice(0, 8).map(g => `<div class="li"><div class="t">${g.day} ${esc(CH[g.channel] || g.channel)} · ${g.items.length} 样
+      <small>${esc(g.items.map(p => p.ingredient).filter((v, i, a) => v && a.indexOf(v) === i).join("、"))}</small></div></div>`).join("")
+    || `<div class="empty">最近两周没有记录</div>`;
+}
+function openStock(i) {
+  skItem = STOCK.items[i]; skLeft = skItem.left;
+  $("skTitle").textContent = skItem.ingredient;
+  $("skInfo").textContent = `${skItem.bought.slice(5).replace("-", "/")} 买 · ${dueTxt(skItem)} · 还剩多少？`;
+  $("skNum").textContent = UNIT_TXT(skItem, skLeft);
+  openSheet("shStock");
+}
+function stepStock(d) { skLeft = Math.max(0, skLeft + d); $("skNum").textContent = UNIT_TXT(skItem, skLeft); }
+async function setStock(n, reason) {
+  try { renderStock(await api("/api/stock", J("POST", {ingredient: skItem.ingredient, left: n, reason}))); closeSheet("shStock"); toast("已改"); }
+  catch (e) { toast("失败：" + e.message); }
+}
+function setStockOf(i, n, reason) { skItem = STOCK.items[i]; setStock(n, reason); }
+async function addStock() {
+  const text = $("addText").value.trim();
+  if (!text) return;
+  try {
+    const r = await api("/api/stock/add", J("POST", {text}));
+    renderStock(r); closeSheet("shAdd"); $("addText").value = "";
+    toast("记下了：" + r.added.join("、") + (r.unknown.length ? `（${r.unknown.join("、")} 还没分类）` : ""));
+  } catch (e) { toast("失败：" + e.message); }
+}
+
+// ---------- 路由 ----------
+async function route() {
+  const h = location.hash || "#/";
+  const views = {"#/": "vMain", "#/settings": "vSettings", "#/settings/presets": "vPresets", "#/settings/dishes": "vDishes",
+    "#/settings/history": "vHistory", "#/settings/screen": "vScreen", "#/settings/logs": "vLogs", "#/stock": "vStock",
+    "#/settings/chores": "vChores", "#/settings/schedule": "vSchedule", "#/settings/notify": "vNotify"};
+  const v = views[h] || "vMain";
+  document.querySelectorAll(".view").forEach(el => el.classList.toggle("on", el.id === v));
+  if (v === "vMain") api("/api/stock").then(s => {
+    const n = s.items.filter(x => !x.expired).length, w = s.items.filter(x => x.expired || x.days_left <= 1).length;
+    $("stockSum").textContent = `${n} 样` + (w ? ` · ${w} 样快坏了` : "") + ` · 能做 ${s.can_cook.length} 道`;
+  }).catch(() => {});
+  if (v === "vMain") { if (!day) { const d = new Date(); if (d.toTimeString().slice(0, 5) >= (SET.switch_time || "18:00")) d.setDate(d.getDate() + 1); await setDay(ymd(d)); } else renderMain(); }
+  if (v === "vSettings") {
+    $("sDishes").textContent = `${LIB.filter(d => !d.custom && !d.id.startsWith("h-")).length} 道 · 自己加的 ${LIB.filter(d => d.custom).length} 道 · 已隐藏 ${LIB.filter(d => d.hidden).length} 道`;
+    $("sHistory").textContent = `共 ${MENUS.length} 天`;
+    $("sSchedule").textContent = scheduleText(SET.schedule);
+    $("sNotify").textContent = notifySummary();
+    $("sScreen").textContent = DEV.seen ? `${fmtT(DEV.seen)} 同步 · 电量 ${bars(DEV.bat_level)} · 固件 ${DEV.fw}` : "还没连过";
+  }
+  if (v === "vPresets") renderPresets();
+  if (v === "vSchedule") renderSchedule();
+  if (v === "vNotify") renderNotify();
+  if (v === "vChores") { CHORES = await api("/api/chores"); renderChores(); }
+  if (v === "vDishes") renderLib();
+  if (v === "vHistory") renderHistory();
+  if (v === "vScreen") { DEV = await api("/api/device"); renderScreen(); }
+  if (v === "vLogs") renderLogs();
+  if (v === "vStock") renderStock(await api("/api/stock"));
+  window.scrollTo(0, 0);
+}
+window.addEventListener("hashchange", route);
+// 手机键盘弹出来时，把正在输入的框滚到看得见的地方（Android 靠 viewport 的 resizes-content，这里给 iPhone 兜底）
+document.addEventListener("focusin", e => {
+  if (e.target.matches("input[type=text], textarea, .search")) setTimeout(() => e.target.scrollIntoView({block: "nearest"}), 350);
+});
+document.querySelector(".daynav").addEventListener("click", () => $("datePick").showPicker && $("datePick").showPicker());
+// 回到前台时刷新屏幕状态
+document.addEventListener("visibilitychange", async () => { if (!document.hidden) { DEV = await api("/api/device"); if ((location.hash || "#/") === "#/") renderMain(); } });
+
+(async () => { await loadMeta(); route(); })();
+</script>
+</body>
+</html>
