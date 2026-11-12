@@ -10,7 +10,7 @@
                                MENU_WIFI_SSID / MENU_WIFI_PASS / MENU_SERVER，或者刷完用手机配网
 
 串口自动找乐鑫原生 USB（VID 303A），也可以 --port COM5 或 PORT=/dev/ttyACM0 指定。
-板子深度睡眠时 USB 不枚举，脚本等串口时按一下屏幕下边框的白色按键（复位）叫醒，串口一出现就会被抓住进下载模式。
+板子深度睡眠时 USB 不枚举，脚本等串口时按一下屏幕边框上那个白色长条按键（复位）叫醒，串口一出现就会被抓住进下载模式。
 """
 import argparse
 import os
@@ -46,7 +46,7 @@ def run(*cmd):
 def wait_port(port):
     if port:
         return port
-    print("等串口出现（按一下屏幕下边框的白色按键叫醒板子）...", flush=True)
+    print("等串口出现（按一下屏幕边框上那个白色长条按键叫醒板子）...", flush=True)
     for _ in range(1800):
         for p in list_ports.comports():
             if p.vid == ESPRESSIF_VID:
