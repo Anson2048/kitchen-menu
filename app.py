@@ -356,6 +356,26 @@ def wake_slots(day: dt.date = None):
     return sorted(set(st["wake_times"]) | {st["switch_time"]})
 
 
+DEBUG_SLEEP = 300  # 调试模式下几秒醒一次
+
+
+def debug_off_time(t=None):
+    """调试模式到第二天早上第一个醒来时间自动关（至少再开一小时），免得忘了关把电池耗光。"""
+    t = t or now()
+    for days in range(8):
+        d = t.date() + dt.timedelta(days=days)
+        w = dt.datetime.combine(d, hm(wake_slots(d)[0]))
+        if w > t + dt.timedelta(hours=1):
+            return w
+    return t + dt.timedelta(days=1)
+
+
+def debug_until():
+    """调试模式开着就返回到几点，没开或过期了返回 None。"""
+    v = kv_get("settings", {}).get("debug_until")
+    return v if v and dt.datetime.fromisoformat(v) > now() else None
+
+
 def settings():
     st = kv_get("settings", {})
     pre = st.get("presets") or {}
@@ -369,6 +389,7 @@ def settings():
         "notify": {**NOTIFY_DEFAULT, **(st.get("notify") or {})},
         "webhook": {**WEBHOOK_DEFAULT, **(st.get("webhook") or {})},
         "public_url": st.get("public_url") or PUBLIC_URL,
+        "debug_until": debug_until(),
         "events": EVENTS,
         "hidden": hidden_ids(),
     }
@@ -386,9 +407,11 @@ def get_settings():
 
 @app.put("/api/settings")
 async def put_settings(request: Request):
-    """只传要改的字段，比如 {"wake_times": ["06:00","11:00"]}。"""
+    """只传要改的字段，比如 {"wake_times": ["06:00","11:00"]}；{"debug": true} 开调试模式。"""
     body = await request.json()
     st = kv_get("settings", {})
+    if "debug" in body:
+        st["debug_until"] = debug_off_time().isoformat(timespec="seconds") if body["debug"] else None
     if "hidden" in body:
         with db() as c:
             c.execute("UPDATE dishes SET hidden = 0")
@@ -1617,12 +1640,18 @@ def next_sleep(t=None):
     if ov.exists():
         return int(ov.read_text().strip() or 60)
     t = t or now()
+    sleep = 3600
     for days in range(8):
         for s in wake_slots(t.date() + dt.timedelta(days=days)):
             w = dt.datetime.combine(t.date() + dt.timedelta(days=days), hm(s))
             if w > t + dt.timedelta(seconds=60):
-                return max(60, int((w - now()).total_seconds()))
-    return 3600
+                sleep = max(60, int((w - now()).total_seconds()))
+                break
+        else:
+            continue
+        break
+    # 调试模式：照样不错过正常的醒来时间，只是中间每几分钟多醒一次
+    return min(sleep, DEBUG_SLEEP) if debug_until() else sleep
 
 
 def snap_to_wake(t=None):

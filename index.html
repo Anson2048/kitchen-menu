@@ -121,6 +121,10 @@
   .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; transition: left .15s; }
   .switch.on { background: #34c759; }
   .switch.on::after { left: 21px; }
+  /* 说明文字收在 ⓘ 里，点了才展开 */
+  .tip { border: 0; background: none; color: var(--muted); font-size: 15px; padding: 0 4px; vertical-align: 1px; }
+  .li .t small.tipx { display: none; white-space: normal; }
+  .li.open .t small.tipx { display: block; }
   .log { font-size: 14px; }
   .log .li { align-items: flex-start; }
   .log .tm { width: 92px; flex: none; color: var(--muted); font-size: 13px; }
@@ -297,6 +301,10 @@
     <div class="list"><div class="times" id="wakeTimes"></div></div>
     <div class="list">
       <div class="li"><div class="t">几点后显示明天的菜单<small>明天已经录好才切</small></div><input type="time" id="switchTime" onchange="saveSettings({switch_time:this.value})" style="font:inherit;border:0;background:none"></div>
+    </div>
+    <div class="sect">开发</div>
+    <div class="list">
+      <div class="li"><div class="t">调试模式<button class="tip" onclick="this.closest('.li').classList.toggle('open')">ⓘ</button><small class="tipx" id="debugTip"></small></div><button class="switch" id="debugSw" onclick="saveSettings({debug: !SET.debug_until})"></button></div>
     </div>
   </main>
 </div>
@@ -804,6 +812,9 @@ function renderScreen() {
   $("wakeAdd").onchange = e => e.target.value && saveSettings({wake_times: [...SET.wake_times, e.target.value]});
   $("wakeAdd").parentElement.onclick = () => $("wakeAdd").showPicker ? $("wakeAdd").showPicker() : $("wakeAdd").focus();
   $("switchTime").value = SET.switch_time;
+  $("debugSw").classList.toggle("on", !!SET.debug_until);
+  $("debugTip").textContent = "每 5 分钟醒一次，改菜和新固件很快就能上屏；很费电，"
+    + (SET.debug_until ? `${fmtT(SET.debug_until)} 自动关` : "到第二天早上第一个醒来时间自动关") + "。刚打开要按一下屏幕的键才生效";
 }
 
 // ---------- 设置：日志 ----------
@@ -977,7 +988,7 @@ async function route() {
     $("sHistory").textContent = `共 ${MENUS.length} 天`;
     $("sSchedule").textContent = scheduleText(SET.schedule);
     $("sNotify").textContent = notifySummary();
-    $("sScreen").textContent = DEV.seen ? `${fmtT(DEV.seen)} 同步 · 电量 ${bars(DEV.bat_level)} · 固件 ${DEV.fw}` : "还没连过";
+    $("sScreen").textContent = (SET.debug_until ? "调试中 · " : "") + (DEV.seen ? `${fmtT(DEV.seen)} 同步 · 电量 ${bars(DEV.bat_level)} · 固件 ${DEV.fw}` : "还没连过");
   }
   if (v === "vPresets") renderPresets();
   if (v === "vSchedule") renderSchedule();
