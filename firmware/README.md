@@ -42,7 +42,7 @@ WiFi 和服务器地址可以在编译时给默认值，也可以完全不给，
    uv run flash.py --backup
    ```
 
-   脚本等串口出现时按一下屏幕正面的键叫醒板子。它会把整片 4MB 读到 `backup/orig-full-<时间>.bin`，再截出前 32KB 存成 `bootloader-orig.bin`。也可以只备份 bootloader：
+   脚本等串口出现时按一下屏幕下边框的白色按键叫醒板子。它会把整片 4MB 读到 `backup/orig-full-<时间>.bin`，再截出前 32KB 存成 `bootloader-orig.bin`。也可以只备份 bootloader：
 
    ```sh
    uvx --from 'esptool>=5' esptool --chip esp32c3 -p <串口> read-flash 0x0 0x8000 bootloader-orig.bin
