@@ -6,9 +6,9 @@
 
 ## 编译环境
 
-- [PlatformIO Core](https://platformio.org/install/cli) 6.x。不想装的话，脚本会依次尝试 PATH 里的 `pio`、`~/.platformio/penv/bin/pio`、`uvx platformio`、`python3 -m platformio`
+- 有线刷机只要装 [uv](https://docs.astral.sh/uv/)：`flash.py` 自带依赖声明，`uv run flash.py` 会自己装 PlatformIO 和 esptool 5.x，macOS / Linux / Windows 通用
+- 自己编译用 [PlatformIO Core](https://platformio.org/install/cli) 6.x。`publish.sh` 会依次尝试 PATH 里的 `pio`、`~/.platformio/penv/bin/pio`、`uvx platformio`、`python3 -m platformio`
 - 平台锁在 `espressif32@6.9.0`（Arduino core 2.0.17），库是 `zinggjm/GxEPD2@1.6.2`，第一次 `pio run` 会自动下载
-- 刷机用 [esptool](https://github.com/espressif/esptool) 5.x，有 [uv](https://docs.astral.sh/uv/) 的话脚本直接 `uvx --from 'esptool>=5' esptool`
 - 分区表 `min_spiffs.csv`：两个 1.875MB 的 OTA 分区，当前固件约 1MB
 
 ```sh
@@ -39,13 +39,13 @@ WiFi 和服务器地址可以在编译时给默认值，也可以完全不给，
 2. **备份原厂固件和 bootloader**（只需要做一次）：
 
    ```sh
-   ./flash.sh --backup
+   uv run flash.py --backup
    ```
 
    脚本等串口出现时按一下屏幕正面的键叫醒板子。它会把整片 4MB 读到 `backup/orig-full-<时间>.bin`，再截出前 32KB 存成 `bootloader-orig.bin`。也可以只备份 bootloader：
 
    ```sh
-   uvx --from 'esptool>=5' esptool --chip esp32c3 -p /dev/cu.usbmodemXXXX read-flash 0x0 0x8000 bootloader-orig.bin
+   uvx --from 'esptool>=5' esptool --chip esp32c3 -p <串口> read-flash 0x0 0x8000 bootloader-orig.bin
    ```
 
    为什么要原厂 bootloader：这块板的 Flash 只能跑 DIO，PlatformIO 编出来的 bootloader 在上面会无限重启，所以 0x0 一直用原厂的，只换分区表和应用。原厂文件是厂家的二进制，`.gitignore` 已经排除，不要提交。
@@ -53,12 +53,13 @@ WiFi 和服务器地址可以在编译时给默认值，也可以完全不给，
 3. 刷入：
 
    ```sh
-   MENU_SERVER=http://192.168.1.10:8000 ./flash.sh   # WiFi 不写也行，等会儿配网
+   uv run flash.py --server http://192.168.1.10:8000                    # WiFi 不写也行，等会儿配网
+   uv run flash.py --ssid 家里WiFi --password 密码 --server http://192.168.1.10:8000   # 写进去就不用配网
    ```
 
-   串口自动找 macOS 的 `/dev/cu.usbmodem*` 和 Linux 的 `/dev/ttyACM*`，也可以用 `PORT=/dev/ttyACM0 ./flash.sh` 指定。Linux 上当前用户要在 `dialout`（或 `uucp`）组里。
+   参数也可以用上面的环境变量给。串口自动找乐鑫原生 USB（VID 303A，macOS 是 `/dev/cu.usbmodem*`、Linux 是 `/dev/ttyACM*`、Windows 是 `COMx`），也可以用 `--port COM5` 指定。Linux 上当前用户要在 `dialout`（或 `uucp`）组里。
 
-想恢复原厂固件：`esptool --chip esp32c3 -p <串口> write-flash 0x0 backup/orig-full-<时间>.bin`。
+想恢复原厂固件：`uvx --from 'esptool>=5' esptool --chip esp32c3 -p <串口> write-flash 0x0 backup/orig-full-<时间>.bin`。
 
 ## 配网
 

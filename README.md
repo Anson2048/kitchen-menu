@@ -33,6 +33,14 @@
 
 ## 开始
 
+### 让 AI 帮你装
+
+屏幕接好线、用 USB 插到电脑上以后，把下面这段话发给电脑上的 AI 助手（豆包、WorkBuddy、Codex、Claude Code 这类能在本机执行命令的），它会按 [AGENTS.md](AGENTS.md) 部署服务端、刷固件，需要你按键时会告诉你：
+
+> 帮我装 github.com/Anson2048/kitchen-menu 的厨房墨水屏。按仓库里 AGENTS.md 的步骤来：在这台电脑上部署服务端，再把 USB 上插着的屏幕刷好固件。需要我做什么就告诉我。
+
+### 自己装
+
 1. **做屏幕**：硬件清单、接线、组装见 [docs/hardware.md](docs/hardware.md)
 2. **起服务端**：见 [docs/deploy.md](docs/deploy.md)，最快的是
 
